@@ -1,0 +1,165 @@
+<!--DOCTYPE html-->
+<html>
+<head>
+  <title>k-nearest neighbors</title>
+  <style>
+   #canvas {
+    width: 400px;
+    height: 400px;
+    border: 1px solid black;
+    display: block;
+  }​
+</style>
+</head>
+<body>
+  <canvas id="canvas" width="400" height="400"></canvas>
+  <script type="text/javascript" src="k_nearest_neighbors.js"></script>
+  <script type="text/javascript">
+  // for drawing:
+  NodeList.prototype.draw = function(canvasId, unknownNode) {
+    var ranges = this.calculateRanges(),
+        roomsRange = ranges.rooms.max - ranges.rooms.min,
+        areasRange = ranges.area.max - ranges.area.min,
+
+        canvas = document.getElementById(canvasId),
+        ctx    = canvas.getContext("2d"),
+        width  = 400,
+        height = 400,
+
+        self   = this;
+    ctx.clearRect(0, 0, width, height);
+
+    function drawPoint(node) {
+      switch (node.type) {
+        case 'apartment':
+          ctx.fillStyle = 'red';
+          break;
+        case 'house':
+          ctx.fillStyle = 'green';
+          break;
+        case 'flat':
+          ctx.fillStyle = 'blue';
+          break;
+        default:
+          ctx.fillStyle = '#666666';
+      }
+
+      var padding = 40,
+          xShiftPx = (width  - padding) / width,
+          yShiftPx = (height - padding) / height,
+
+          x = (node.features.rooms - ranges.rooms.min) * (width  / roomsRange) * xShiftPx + (padding / 2),
+          y = (node.features.area  - ranges.area.min) * (height / areasRange) * yShiftPx + (padding / 2);
+      y = Math.abs(y - height);
+
+      ctx.translate(x, y);
+      ctx.beginPath();
+      ctx.arc(0, 0, 5, 0, Math.PI*2, true);
+      ctx.fill();
+      ctx.closePath();
+
+
+      // Is this an unknown node? If so, draw the radius of influence
+      if (!node.type) {
+        switch (node.guess.guess) {
+          case 'apartment':
+            ctx.strokeStyle = 'red';
+            break;
+          case 'house':
+            ctx.strokeStyle = 'green';
+            break;
+          case 'flat':
+            ctx.strokeStyle = 'blue';
+            break;
+          default:
+            ctx.strokeStyle = '#666666';
+        }
+
+        var radius = node.neighbors[self.k - 1].distance * width;
+        radius *= xShiftPx;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI*2, true);
+        ctx.stroke();
+        ctx.closePath();
+
+      }
+    }
+
+    for (var i in this.nodes) {
+      ctx.save();
+      drawPoint(this.nodes[i]);
+      ctx.restore();
+    }
+
+    ctx.save();
+    drawPoint(unknownNode);
+    ctx.restore();
+  };
+
+
+  var data = {
+    apartment: [
+      { rooms: 1, area: 350 },
+      { rooms: 2, area: 300 },
+      { rooms: 3, area: 300 },
+      { rooms: 4, area: 250 },
+      { rooms: 4, area: 500 },
+      { rooms: 4, area: 400 },
+      { rooms: 5, area: 450 },
+    ],
+    house: [
+      { rooms: 7,  area: 850 },
+      { rooms: 7,  area: 900 },
+      { rooms: 7,  area: 1200 },
+      { rooms: 8,  area: 1500 },
+      { rooms: 9,  area: 1300 },
+      { rooms: 8,  area: 1240 },
+      { rooms: 10, area: 1700 },
+      { rooms: 9,  area: 1000 },
+    ],
+    flat: [
+      { rooms: 1, area: 800 },
+      { rooms: 3, area: 900 },
+      { rooms: 2, area: 700 },
+      { rooms: 1, area: 900 },
+      { rooms: 2, area: 1150 },
+      { rooms: 1, area: 1000 },
+      { rooms: 2, area: 1200 },
+      { rooms: 1, area: 1300 },
+    ]
+  };
+
+
+  // EXAMPLE:
+  var nodes = new NodeList(3);
+  for (var i in data.apartment) {
+    nodes.add( new Node(data.apartment[i], 'apartment') );
+  }
+  for (var i in data.house) {
+    nodes.add( new Node(data.house[i], 'house') );
+  }
+  for (var i in data.flat) {
+    nodes.add( new Node(data.flat[i], 'flat') );
+  }
+  var run = function() {
+    var randomRooms = Math.round( Math.random() * 10 ),
+        randomArea  = Math.round( Math.random() * 2000 ),
+        unknownNode = new Node({ rooms: randomRooms, area: randomArea });
+
+    nodes.calculateRanges();
+    unknownNode.guess = nodes.determineUnknown(unknownNode);
+    nodes.draw("canvas", unknownNode);
+  };
+
+  window.onload = function() {
+    run();
+  };
+
+  // create a new unknown test node on key down
+  document.body.addEventListener('keydown', function() {
+    run();
+  });
+
+  </script>
+</body>
+</html>
